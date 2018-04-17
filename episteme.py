@@ -1,6 +1,7 @@
 import json
 import discord
 import os
+import random
 
 with open("client_data.json", "r") as f:
   clientdata = json.load(f)
@@ -55,13 +56,13 @@ class PredictionGroup:
     self.dump()
     return 0
 
-  def get_predictions(self, user):
+  def get_predictions(self, author):
     status = {}
     for question in self.questions:
       status[question] = "?"
-      if user.mention in self.predictions:
-        if question in self.predictions[user.mention]:
-          status[question] = self.predictions[user.user.mention]
+      if author.mention in self.predictions:
+        if question in self.predictions[author.mention]:
+          status[question] = self.predictions[author.mention]
     return status
 
   def resolve(self, truths):
@@ -102,6 +103,16 @@ class Episteme(discord.Client):
     for filename in os.listdir("activepredictiongroups"):
       self.predictiongroups[filename] = PredictionGroup(filename)
 
+  def render_status(self, author, predictiongroup):
+    status = predictiongroup.get_predictions(author)
+    output = []
+    for question, prediction in status.items():
+      if prediction == "?":
+        output.append("{0}\t?".format(question))
+      else:
+        output.append("{0}\t{1}%".format(question, int(100*prediction)))
+    return "\n".join(output)
+
   async def on_private_message(self, message):
     if (message.author not in self.activeconversations):
       await self.send_message(message.channel,
@@ -129,8 +140,22 @@ class Episteme(discord.Client):
     elif errorcode == group.PREDICTIONGROUP_RESOLVED:
       await self.send_message(message.channel, "The survey has been resolved in the meantime. See results in #prediction.")
 
-    # TODO: Implement this (with message splitting and all)
-    self.render_status(message.author)
+    overview = self.render_status(message.author, group)
+    while len(overview) >= 2000:
+      idx = overview[:2000].rfind("\n")
+      await self.send_message(message.channel, overview[:idx])
+      overview = overview[idx:]
+    await self.send_message(message.channel, overview)
+
+    openquestions = [question for question,prediction in group.get_predictions(message.author) if prediction == "?"]
+    if len(openquestions) > 0:
+      nextquestion = random.choice(openquestions)
+      await self.send_message(message.channel, "\n"+nextquestion)
+    else:
+      await self.send_message(message.channel, """\nCongratulations, you have successfully completed this prediction group.""" +
+      """\nYou will be pinged when the results are announced, thank you for participating!""" +
+      """\nYou can update predictions with ```update {0} <question> <new prediction``` at any time in PM.""".format(group.name))
+
 
   # async def on_public_message(self, message):
 
