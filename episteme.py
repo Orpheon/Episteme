@@ -227,9 +227,22 @@ class Episteme(discord.Client):
           else:
             await self.send_message(message.channel, "Could not find a prediction group named {0}. List: {1}", words[1], " ".join(self.predictiongroups.keys()))
         elif words[0] == "resolve":
-
+          if words[1] in self.predictiongroups:
+            group = self.predictiongroups[words[1]]
+            question = group.question[0]
+            self.activeconversations[message.author]["currentpredictiongroup"] = group
+            self.activeconversations[message.author]["currentquestion"] = question
+            self.activeconversations[message.author]["currentmode"] = "predicting"
+            self.activeconversations[message.author]["truths"] = {}
+            await self.send_message(message.author,
+                                    "Welcome.\nPlease answer every question with either `true`, `false` or `unknown`.")
+            await self.send_message(message.author, question)
         elif words[0] == "create":
-
+          if words[1] in self.predictiongroups:
+            await self.send_message(message.channel, "This prediction group already exists!")
+          else:
+            self.activeconversations[message.author]["currentpredictiongroup"] = words[1]
+            self.activeconversations[message.author]["currentmode"] = "creating"
         else:
           await self.send_message(message.channel, "Unrecognized command.")
 
