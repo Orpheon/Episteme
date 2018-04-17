@@ -6,6 +6,9 @@ with open("client_data.json", "r") as f:
   clientdata = json.load(f)
 
 class PredictionGroup:
+  NONEXISTENT_QUESTION = -1
+  PREDICTIONGROUP_RESOLVED = -2
+
   def __init__(self, name):
     self.name = name
     self.path = os.path.join("activepredictiongroups", self.name) + ".json"
@@ -34,11 +37,16 @@ class PredictionGroup:
       json.dump(data, f, indent=4)
 
   def set_prediction(self, user, question, prediction):
-    if question in self.questions and len(self.truths) == 0:
-      if user.mention not in self.predictions:
-        self.predictions[user.mention] = {}
-      self.predictions[user.mention][question] = prediction
+    if question not in self.questions:
+      return self.NONEXISTENT_QUESTION
+    if len(self.truths) > 0:
+      return self.PREDICTIONGROUP_RESOLVED
+
+    if user.mention not in self.predictions:
+      self.predictions[user.mention] = {}
+    self.predictions[user.mention][question] = prediction
     self.dump()
+    return 0
 
   def resolve_predictions(self, truths):
     scores = {}
