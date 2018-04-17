@@ -5,6 +5,13 @@ import os
 with open("client_data.json", "r") as f:
   clientdata = json.load(f)
 
+def isnumber(x):
+  try:
+    float(x)
+    return True
+  except:
+    return False
+
 class PredictionGroup:
   NONEXISTENT_QUESTION = -1
   PREDICTIONGROUP_RESOLVED = -2
