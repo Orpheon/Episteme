@@ -123,37 +123,32 @@ class Episteme(discord.Client):
         output.append("{0}\t{1}%".format(question, int(100*prediction)))
     return "\n".join(output)
 
-  async def on_private_message(self, message):
-    if (message.author not in self.activeconversations):
-      words = message.content.split()
-      if len(words) >= 4:
-        if words[0] == "update":
-          if words[1] in self.predictiongroups:
-            group = words[1]
-            question = " ".join(words[2:-1])
-            if question in group:
-              if isnumber(words[-1]):
-                group.set_prediction(message.author, question, float(words[-1]) / 100)
-                await self.send_message(message.channel, "Successfully updated!")
-                overview = self.render_status(message.author, group)
-                while len(overview) >= 2000:
-                  idx = overview[:2000].rfind("\n")
-                  await self.send_message(message.channel, overview[:idx])
-                  overview = overview[idx:]
-                await self.send_message(message.channel, overview)
-              else:
-                await self.send_message(message.channel, "{0} is not a valid number from 0-100".format(words[-1]))
-            else:
-              await self.send_message(message.channel,
-                                      "{0} was not recognized as a question of {1}".format(question, group.name))
-          else:
-            await self.send_message(message.channel, "{0} is not a currently active prediction group".format(words[1]))
-          return
-      await self.send_message(message.channel,
-                              """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
-                              """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
-      return
 
+  async def handle_update_request(self, message):
+    words = message.content.split()
+    if words[1] in self.predictiongroups:
+      group = words[1]
+      question = " ".join(words[2:-1])
+      if question in group:
+        if isnumber(words[-1]):
+          group.set_prediction(message.author, question, float(words[-1]) / 100)
+          await self.send_message(message.channel, "Successfully updated!")
+          overview = self.render_status(message.author, group)
+          while len(overview) >= 2000:
+            idx = overview[:2000].rfind("\n")
+            await self.send_message(message.channel, overview[:idx])
+            overview = overview[idx:]
+          await self.send_message(message.channel, overview)
+        else:
+          await self.send_message(message.channel, "{0} is not a valid number from 0-100".format(words[-1]))
+      else:
+        await self.send_message(message.channel,
+                          "{0} was not recognized as a question of {1}".format(question, group.name))
+    else:
+      await self.send_message(message.channel, "{0} is not a currently active prediction group".format(words[1]))
+
+
+  async def handle_prediction_conversation(self, message):
     try:
       prediction = float(message.content) / 100
     except TypeError:
@@ -192,6 +187,23 @@ class Episteme(discord.Client):
       """\nYou will be pinged when the results are announced, thank you for participating!""" +
       """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
 
+
+  async def on_private_message(self, message):
+    if message.author not in self.activeconversations:
+      words = message.content.split()
+      if len(words) >= 4:
+        if words[0] == "update":
+          await self.handle_update_request(message)
+      await self.send_message(message.channel,
+                              """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
+                              """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
+    else:
+      if self.activeconversations[message.author]["currentmode"] == "prediction":
+        self.handle_prediction_conversation(message)
+      elif self.activeconversations[message.author]["currentmode"] == "resolving":
+        self.handle_resolving_conversation(message)
+      elif self.activeconversations[message.author]["currentmode"] == "creating":
+        self.handle_creating_conversation(message)
 
   async def on_public_message(self, message):
     if self.mentioned_in(message):
