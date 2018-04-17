@@ -102,7 +102,36 @@ class Episteme(discord.Client):
     for filename in os.listdir("activepredictiongroups"):
       self.predictiongroups[filename] = PredictionGroup(filename)
 
-  # async def on_private_message(self, message):
+  async def on_private_message(self, message):
+    if (message.author not in self.activeconversations):
+      await self.send_message(message.channel,
+                              "You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.")
+      return
+
+    try:
+      prediction = float(message.content) / 100
+    except TypeError:
+      await self.send_message(message.channel,
+                              "That was not recognized as a number, please give a valid number between 0 and 100.")
+      return
+
+    if not (0 <= prediction and prediction <= 1):
+      await self.send_message(message.channel,
+                              "That number was out of range. Please give a number between 0 and 100.")
+      return
+
+    group = self.activeconversations[message.author]["currentpredictiongroup"]
+    question = self.activeconversations[message.author]["currentquestion"]
+    errorcode = group.set_prediction(message.author, question, prediction)
+    if errorcode == group.NONEXISTENT_QUESTION:
+      await self.send_message(message.channel,
+                              "Something went wrong, {0} is not a valid question of {1}, which shouldn't happen. Please report this to Orpheon.".format(question, group.name))
+    elif errorcode == group.PREDICTIONGROUP_RESOLVED:
+      await self.send_message(message.channel, "The survey has been resolved in the meantime. See results in #prediction.")
+
+    # TODO: Implement this (with message splitting and all)
+    self.render_status(message.author)
+
   # async def on_public_message(self, message):
 
 discordclient = Episteme()
