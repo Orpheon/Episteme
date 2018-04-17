@@ -205,6 +205,7 @@ class Episteme(discord.Client):
       elif self.activeconversations[message.author]["currentmode"] == "creating":
         self.handle_creating_conversation(message)
 
+
   async def on_public_message(self, message):
     if self.mentioned_in(message):
       words = message.split()
