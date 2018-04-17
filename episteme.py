@@ -200,17 +200,19 @@ class Episteme(discord.Client):
         if words[0] == "predict":
           if words[1] in self.predictiongroups:
             group = self.predictiongroups[words[1]]
-            openquestions = [question for question, prediction in group.get_predictions(message.author) if
-                             prediction == "?"]
-            if len(openquestions) == 0:
-              await self.send_message(message.channel, "You have already given a prediction to all questions of this group.")
+            nextquestion = group.get_next_question(message.author)
+            if not nextquestion:
+              await self.send_message(message.channel,
+                                      "You have already given a prediction to all questions of this group.")
             else:
-              question = random.choice(openquestions)
               self.activeconversations[message.author]["currentpredictiongroup"] = group
-              self.activeconversations[message.author]["currentquestion"] = question
-              await self.send_message(message.author, "Welcome.\nPlease answer every question with a number 0-100 indicating your confidence that it is true.")
-              await self.send_message(message.author, question)
-
+              self.activeconversations[message.author]["currentquestion"] = nextquestion
+              self.activeconversations[message.author]["currentmode"] = "predicting"
+              await self.send_message(message.author,
+                                      "Welcome.\nPlease answer every question with a number 0-100 indicating your confidence that it is true.")
+              await self.send_message(message.author, nextquestion)
+          else:
+            await self.send_message(message.channel, "Could not find a prediction group named {0}. List: {1}", words[1], " ".join(self.predictiongroups.keys()))
         elif words[0] == "resolve":
 
         elif words[0] == "create":
