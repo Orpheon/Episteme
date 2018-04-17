@@ -20,7 +20,7 @@ class PredictionGroup:
     self.name = name
     self.path = os.path.join("activepredictiongroups", self.name) + ".json"
     if not os.path.exists(self.path):
-      self.questions = {}
+      self.questions = []
       self.predictions = {}
       self.truths = {}
       self.dump()
