@@ -175,8 +175,10 @@ class Episteme(discord.Client):
     openquestions = [question for question,prediction in group.get_predictions(message.author) if prediction == "?"]
     if len(openquestions) > 0:
       nextquestion = random.choice(openquestions)
+      self.activeconversations[message.author]["currentquestion"] = nextquestion
       await self.send_message(message.channel, "\n"+nextquestion)
     else:
+      del self.activeconversations[message.author]
       await self.send_message(message.channel, """\nCongratulations, you have successfully completed this prediction group.""" +
       """\nYou will be pinged when the results are announced, thank you for participating!""" +
       """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
