@@ -115,8 +115,33 @@ class Episteme(discord.Client):
 
   async def on_private_message(self, message):
     if (message.author not in self.activeconversations):
+      words = message.content.split()
+      if len(words) >= 4:
+        if words[0] == "update":
+          if words[1] in self.predictiongroups:
+            group = words[1]
+            question = " ".join(words[2:-1])
+            if question in group:
+              if isnumber(words[-1]):
+                group.set_prediction(message.author, question, float(words[-1]) / 100)
+                await self.send_message(message.channel, "Successfully updated!")
+                overview = self.render_status(message.author, group)
+                while len(overview) >= 2000:
+                  idx = overview[:2000].rfind("\n")
+                  await self.send_message(message.channel, overview[:idx])
+                  overview = overview[idx:]
+                await self.send_message(message.channel, overview)
+              else:
+                await self.send_message(message.channel, "{0} is not a valid number from 0-100".format(words[-1]))
+            else:
+              await self.send_message(message.channel,
+                                      "{0} was not recognized as a question of {1}".format(question, group.name))
+          else:
+            await self.send_message(message.channel, "{0} is not a currently active prediction group".format(words[1]))
+          return
       await self.send_message(message.channel,
-                              "You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.")
+                              """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
+                              """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
       return
 
     try:
@@ -154,7 +179,7 @@ class Episteme(discord.Client):
     else:
       await self.send_message(message.channel, """\nCongratulations, you have successfully completed this prediction group.""" +
       """\nYou will be pinged when the results are announced, thank you for participating!""" +
-      """\nYou can update predictions with ```update {0} <question> <new prediction``` at any time in PM.""".format(group.name))
+      """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
 
 
   # async def on_public_message(self, message):
