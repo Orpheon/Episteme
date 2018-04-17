@@ -101,7 +101,9 @@ class Episteme(discord.Client):
       os.mkdir("finishedpredictiongroups")
 
     for filename in os.listdir("activepredictiongroups"):
-      self.predictiongroups[filename] = PredictionGroup(filename)
+      name = filename.replace(".json", "")
+      self.predictiongroups[name] = PredictionGroup(name)
+
 
   def render_status(self, author, predictiongroup):
     status = predictiongroup.get_predictions(author)
