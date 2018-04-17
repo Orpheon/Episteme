@@ -186,7 +186,30 @@ class Episteme(discord.Client):
       """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
 
 
-  # async def on_public_message(self, message):
+  async def on_public_message(self, message):
+    if self.mentioned_in(message):
+      words = message.split()
+      if len(words) >= 2:
+        if words[0] == "predict":
+          if words[1] in self.predictiongroups:
+            group = self.predictiongroups[words[1]]
+            openquestions = [question for question, prediction in group.get_predictions(message.author) if
+                             prediction == "?"]
+            if len(openquestions) == 0:
+              await self.send_message(message.channel, "You have already given a prediction to all questions of this group.")
+            else:
+              question = random.choice(openquestions)
+              self.activeconversations[message.author]["currentpredictiongroup"] = group
+              self.activeconversations[message.author]["currentquestion"] = question
+              await self.send_message(message.author, "Welcome.\nPlease answer every question with a number 0-100 indicating your confidence that it is true.")
+              await self.send_message(message.author, question)
+
+        elif words[0] == "resolve":
+
+        elif words[0] == "create":
+
+        else:
+          await self.send_message(message.channel, "Unrecognized command.")
 
 discordclient = Episteme()
 discordclient.run(clientdata["token"])
