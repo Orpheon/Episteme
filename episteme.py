@@ -48,7 +48,16 @@ class PredictionGroup:
     self.dump()
     return 0
 
-  def resolve_predictions(self, truths):
+  def get_predictions(self, user):
+    status = {}
+    for question in self.questions:
+      status[question] = "?"
+      if user.mention in self.predictions:
+        if question in self.predictions[user.mention]:
+          status[question] = self.predictions[user.user.mention]
+    return status
+
+  def resolve(self, truths):
     scores = {}
     for usermention,predictions in self.predictions.items():
       userscore = 0
