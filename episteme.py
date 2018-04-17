@@ -98,6 +98,8 @@ class PredictionGroup:
 
 
 class Episteme(discord.Client):
+  PREDICTIONS_CHANNEL_ID = "430872623426174979"
+
   def __init__(self):
     super().__init__()
     self.activeconversations = {}
@@ -188,63 +190,90 @@ class Episteme(discord.Client):
       """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
 
 
-  async def on_private_message(self, message):
-    if message.author not in self.activeconversations:
-      words = message.content.split()
-      if len(words) >= 4:
-        if words[0] == "update":
-          await self.handle_update_request(message)
-      await self.send_message(message.channel,
-                              """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
-                              """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
+  async def handle_resolving_conversation(self, message):
+    group = self.activeconversations[message.author]["currentpredictiongroup"]
+    question = self.activeconversations[message.author]["currentquestion"]
+    if message.content == "true" or message.content == "false" or message.content == "unknown":
+      self.activeconversations[message.author]["truths"][question] = message.content
+      nextquestion = None
+      for question in group.questions:
+        if question not in self.activeconversations[message.author]["truths"]:
+          nextquestion = question
+          break
+      if nextquestion:
+        self.activeconversations[message.author]["currentquestion"] = nextquestion
+        await self.send_message(message.channel, nextquestion)
+      else:
+        await self.send_message(message.channel, "Finished resolving, calculating scores..")
+        channels = self.get_all_channels()
+        for channel in channels:
+          if channel.id == self.PREDICTIONS_CHANNEL_ID:
+            # TODO: Message everyone about results
     else:
-      if self.activeconversations[message.author]["currentmode"] == "prediction":
-        self.handle_prediction_conversation(message)
-      elif self.activeconversations[message.author]["currentmode"] == "resolving":
-        self.handle_resolving_conversation(message)
-      elif self.activeconversations[message.author]["currentmode"] == "creating":
-        self.handle_creating_conversation(message)
+      await self.send_message(message.channel, "Please answer with `true`, `false` or `unknown`.")
+      await self.send_message(message.channel, self.activeconversations[message.author]["currentquestion"])
 
 
-  async def on_public_message(self, message):
-    if self.mentioned_in(message):
-      words = message.split()
-      if len(words) >= 2:
-        if words[0] == "predict":
-          if words[1] in self.predictiongroups:
-            group = self.predictiongroups[words[1]]
-            nextquestion = group.get_next_question(message.author)
-            if not nextquestion:
-              await self.send_message(message.channel,
-                                      "You have already given a prediction to all questions of this group.")
+  # TODO: handle_creating_conversation
+
+
+  async def on_message(self, message):
+    if message.channel.is_private:
+      if message.author not in self.activeconversations:
+        words = message.content.split()
+        if len(words) >= 4:
+          if words[0] == "update":
+            await self.handle_update_request(message)
+        await self.send_message(message.channel,
+                                """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
+                                """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
+      else:
+        if self.activeconversations[message.author]["currentmode"] == "prediction":
+          self.handle_prediction_conversation(message)
+        elif self.activeconversations[message.author]["currentmode"] == "resolving":
+          self.handle_resolving_conversation(message)
+        elif self.activeconversations[message.author]["currentmode"] == "creating":
+          self.handle_creating_conversation(message)
+    else:
+      if self.user.mentioned_in(message):
+        words = message.split()
+        if len(words) >= 2:
+          if words[0] == "predict":
+            if words[1] in self.predictiongroups:
+              group = self.predictiongroups[words[1]]
+              nextquestion = group.get_next_question(message.author)
+              if not nextquestion:
+                await self.send_message(message.channel,
+                                        "You have already given a prediction to all questions of this group.")
+              else:
+                self.activeconversations[message.author]["currentpredictiongroup"] = group
+                self.activeconversations[message.author]["currentquestion"] = nextquestion
+                self.activeconversations[message.author]["currentmode"] = "predicting"
+                await self.send_message(message.author,
+                                        "Welcome.\nPlease answer every question with a number 0-100 indicating your confidence that it is true.")
+                await self.send_message(message.author, nextquestion)
             else:
+              await self.send_message(message.channel,
+                                      "Could not find a prediction group named {0}. List: {1}".format(words[1], " ".join(self.predictiongroups.keys())))
+          elif words[0] == "resolve":
+            if words[1] in self.predictiongroups:
+              group = self.predictiongroups[words[1]]
+              question = group.question[0]
               self.activeconversations[message.author]["currentpredictiongroup"] = group
-              self.activeconversations[message.author]["currentquestion"] = nextquestion
+              self.activeconversations[message.author]["currentquestion"] = question
               self.activeconversations[message.author]["currentmode"] = "predicting"
+              self.activeconversations[message.author]["truths"] = {}
               await self.send_message(message.author,
-                                      "Welcome.\nPlease answer every question with a number 0-100 indicating your confidence that it is true.")
-              await self.send_message(message.author, nextquestion)
+                                      "Welcome.\nPlease answer every question with either `true`, `false` or `unknown`.")
+              await self.send_message(message.author, question)
+          elif words[0] == "create":
+            if words[1] in self.predictiongroups:
+              await self.send_message(message.channel, "This prediction group already exists!")
+            else:
+              self.activeconversations[message.author]["currentpredictiongroup"] = words[1]
+              self.activeconversations[message.author]["currentmode"] = "creating"
           else:
-            await self.send_message(message.channel, "Could not find a prediction group named {0}. List: {1}", words[1], " ".join(self.predictiongroups.keys()))
-        elif words[0] == "resolve":
-          if words[1] in self.predictiongroups:
-            group = self.predictiongroups[words[1]]
-            question = group.question[0]
-            self.activeconversations[message.author]["currentpredictiongroup"] = group
-            self.activeconversations[message.author]["currentquestion"] = question
-            self.activeconversations[message.author]["currentmode"] = "predicting"
-            self.activeconversations[message.author]["truths"] = {}
-            await self.send_message(message.author,
-                                    "Welcome.\nPlease answer every question with either `true`, `false` or `unknown`.")
-            await self.send_message(message.author, question)
-        elif words[0] == "create":
-          if words[1] in self.predictiongroups:
-            await self.send_message(message.channel, "This prediction group already exists!")
-          else:
-            self.activeconversations[message.author]["currentpredictiongroup"] = words[1]
-            self.activeconversations[message.author]["currentmode"] = "creating"
-        else:
-          await self.send_message(message.channel, "Unrecognized command.")
+            await self.send_message(message.channel, "Unrecognized command.")
 
 discordclient = Episteme()
 discordclient.run(clientdata["token"])
