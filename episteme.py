@@ -44,6 +44,14 @@ class PredictionGroup:
       }
       json.dump(data, f, indent=4)
 
+  def get_next_question(self, author):
+    if not author.mention in self.predictions:
+      return self.questions[0]
+    for question in self.questions:
+      if not question in self.predictions[author.mention]:
+        return question
+    return None
+
   def set_prediction(self, user, question, prediction):
     if question not in self.questions:
       return self.NONEXISTENT_QUESTION
@@ -174,9 +182,8 @@ class Episteme(discord.Client):
       overview = overview[idx:]
     await self.send_message(message.channel, overview)
 
-    openquestions = [question for question,prediction in group.get_predictions(message.author) if prediction == "?"]
-    if len(openquestions) > 0:
-      nextquestion = random.choice(openquestions)
+    nextquestion = group.get_next_question(message.author)
+    if nextquestion:
       self.activeconversations[message.author]["currentquestion"] = nextquestion
       await self.send_message(message.channel, "\n"+nextquestion)
     else:
