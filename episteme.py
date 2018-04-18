@@ -205,10 +205,18 @@ class Episteme(discord.Client):
         await self.send_message(message.channel, nextquestion)
       else:
         await self.send_message(message.channel, "Finished resolving, calculating scores..")
+        results = group.resolve(self.activeconversations[message.author]["truths"])
+        ranking = sorted(list(results.items()), key=lambda x: x[1]["error"])
         channels = self.get_all_channels()
         for channel in channels:
           if channel.id == self.PREDICTIONS_CHANNEL_ID:
-            # TODO: Message everyone about results
+            await self.send_message(channel, "{0} has been completed, results have now been published!")
+            await self.send_message(channel,
+                                    "\n".join(["{0}: {1}, completed {2}%".format(mention, data["error"],
+                                                                                 int(data["completion"]*100)) for mention, data in ranking]))
+        del self.activeconversations[message.author]
+        del self.predictiongroups[group.name]
+
     else:
       await self.send_message(message.channel, "Please answer with `true`, `false` or `unknown`.")
       await self.send_message(message.channel, self.activeconversations[message.author]["currentquestion"])
