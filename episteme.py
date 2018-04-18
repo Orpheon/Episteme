@@ -222,7 +222,18 @@ class Episteme(discord.Client):
       await self.send_message(message.channel, self.activeconversations[message.author]["currentquestion"])
 
 
-  # TODO: handle_creating_conversation
+  async def handle_creating_conversation(self, message):
+    group = self.activeconversations[message.author]["currentpredictiongroup"]
+    if message.content == "finished":
+      self.predictiongroups[group.name] = group
+      group.dump()
+      await self.send_message(message.channel, "Thank you, all questions have been written to disk. {} is now open for predictions.".format(group.name))
+    else:
+      if message.content in group.questions:
+        await self.send_message(message.channel, "That question already exists")
+      else:
+        group.questions.append(message.content)
+        await self.send_message(message.channel, "Registered. Next question please (or finish with `finished`)")
 
 
   async def on_message(self, message):
