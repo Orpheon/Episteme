@@ -129,25 +129,29 @@ class Episteme(discord.Client):
   async def handle_update_request(self, message):
     words = message.content.split()
     if words[1] in self.predictiongroups:
-      group = words[1]
+      group = self.predictiongroups[words[1]]
       question = " ".join(words[2:-1])
-      if question in group:
+      if question in group.questions:
         if isnumber(words[-1]):
-          group.set_prediction(message.author, question, float(words[-1]) / 100)
-          await self.send_message(message.channel, "Successfully updated!")
-          overview = self.render_status(message.author, group)
-          while len(overview) >= 2000:
-            idx = overview[:2000].rfind("\n")
-            await self.send_message(message.channel, overview[:idx])
-            overview = overview[idx:]
-          await self.send_message(message.channel, overview)
+          prediction = float(words[-1]) / 100
+          if 0 <= prediction and prediction <= 1:
+            group.set_prediction(message.author, question, prediction)
+            await self.send_message(message.channel, "Successfully updated!")
+            overview = self.render_status(message.author, group)
+            while len(overview) >= 2000:
+              idx = overview[:2000].rfind("\n")
+              await self.send_message(message.channel, overview[:idx])
+              overview = overview[idx:]
+            await self.send_message(message.channel, overview)
+          else:
+            await self.send_message(message.channel, "That prediction is out of the valid range 0-100. Please try again.")
         else:
-          await self.send_message(message.channel, "{0} is not a valid number from 0-100".format(words[-1]))
+          await self.send_message(message.channel, "{0} is not a valid number from 0-100. Please try again.".format(words[-1]))
       else:
         await self.send_message(message.channel,
-                          "{0} was not recognized as a question of {1}".format(question, group.name))
+                          "{0} was not recognized as a question of {1}. Please try again.".format(question, group.name))
     else:
-      await self.send_message(message.channel, "{0} is not a currently active prediction group".format(words[1]))
+      await self.send_message(message.channel, "{0} is not a currently active prediction group. Please try again.".format(words[1]))
 
 
   async def handle_prediction_conversation(self, message):
@@ -230,23 +234,24 @@ class Episteme(discord.Client):
       await self.send_message(message.channel, "Thank you, all questions have been written to disk. {} is now open for predictions.".format(group.name))
     else:
       if message.content in group.questions:
-        await self.send_message(message.channel, "That question already exists")
+        await self.send_message(message.channel, "That question already exists.")
       else:
         group.questions.append(message.content)
-        await self.send_message(message.channel, "Registered. Next question please (or finish with `finished`)")
+        await self.send_message(message.channel, "Registered. Next question please (or finish with `finished`).")
 
 
   async def on_message(self, message):
     if not message.author.bot:
       if message.channel.is_private:
         if message.author not in self.activeconversations:
-          words = message.content.split()[1:]
+          words = message.content.split()
           if len(words) >= 4:
             if words[0] == "update":
               await self.handle_update_request(message)
+              return
           await self.send_message(message.channel,
                                   """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
-                                  """\nAlternatively, if you wish to update an existing prediction, please enter ```update {0} <question> <new prediction>```""")
+                                  """\nAlternatively, if you wish to update an existing prediction, please enter ```update <predictiongroup> <question> <new prediction>```""")
         else:
           if self.activeconversations[message.author]["currentmode"] == "predicting":
             await self.handle_prediction_conversation(message)
@@ -256,11 +261,11 @@ class Episteme(discord.Client):
             await self.handle_creating_conversation(message)
       else:
         if self.user.mentioned_in(message):
-          words = message.content.split()[1:]
-          if len(words) >= 2:
-            if words[0] == "predict":
-              if words[1] in self.predictiongroups:
-                group = self.predictiongroups[words[1]]
+          words = message.content.split()
+          if len(words) >= 3:
+            if words[1] == "predict":
+              if words[2] in self.predictiongroups:
+                group = self.predictiongroups[words[2]]
                 nextquestion = group.get_next_question(message.author)
                 if not nextquestion:
                   await self.send_message(message.channel,
@@ -275,10 +280,10 @@ class Episteme(discord.Client):
                   await self.send_message(message.author, nextquestion)
               else:
                 await self.send_message(message.channel,
-                                        "Could not find a prediction group named {0}. List: {1}".format(words[1], " ".join(self.predictiongroups.keys())))
-            elif words[0] == "resolve":
-              if words[1] in self.predictiongroups:
-                group = self.predictiongroups[words[1]]
+                                        "Could not find a prediction group named {0}. List: {1}".format(words[2], " ".join(self.predictiongroups.keys())))
+            elif words[1] == "resolve":
+              if words[2] in self.predictiongroups:
+                group = self.predictiongroups[words[2]]
                 question = group.questions[0]
                 self.activeconversations[message.author] = {}
                 self.activeconversations[message.author]["currentpredictiongroup"] = group
@@ -288,12 +293,12 @@ class Episteme(discord.Client):
                 await self.send_message(message.author,
                                         "Welcome.\nPlease answer every question with either `true`, `false` or `unknown`.")
                 await self.send_message(message.author, question)
-            elif words[0] == "create":
-              if words[1] in self.predictiongroups:
+            elif words[1] == "create":
+              if words[2] in self.predictiongroups:
                 await self.send_message(message.channel, "This prediction group already exists!")
               else:
                 self.activeconversations[message.author] = {}
-                self.activeconversations[message.author]["currentpredictiongroup"] = PredictionGroup(words[1])
+                self.activeconversations[message.author]["currentpredictiongroup"] = PredictionGroup(words[2])
                 self.activeconversations[message.author]["currentmode"] = "creating"
                 await self.send_message(message.author,
                                         "Welcome.\nPlease enter every question you wish to add to this group, in order, and end with `finished`.")
