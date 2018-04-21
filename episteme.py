@@ -326,6 +326,8 @@ class Episteme(discord.Client):
                                         "Not enough arguments for submit command. Proper format `submit <predictiongroup> <new question>`")
             else:
               await self.send_message(message.channel, "Unrecognized command.")
+          else:
+            await self.send_message(message.channel, "Not enough arguments - have you forgotten to mention the prediction group?")
 
 discordclient = Episteme()
 discordclient.run(clientdata["token"])
