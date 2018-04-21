@@ -192,6 +192,10 @@ class Episteme(discord.Client):
       await self.send_message(message.channel, """\nCongratulations, you have successfully completed this prediction group.""" +
       """\nYou will be pinged when the results are announced, thank you for participating!""" +
       """\nYou can update predictions with ```update {0} <question> <new prediction>``` at any time in PM.""".format(group.name))
+      channels = self.get_all_channels()
+      for channel in channels:
+        if channel.id == self.PREDICTIONS_CHANNEL_ID:
+          await self.send_message(channel, "{0} has successfully set predictions for {1}!".format(message.author.mention, group.name))
 
 
   async def handle_resolving_conversation(self, message):
@@ -250,8 +254,8 @@ class Episteme(discord.Client):
               await self.handle_update_request(message)
               return
           await self.send_message(message.channel,
-                                  """You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start.""" +
-                                  """\nAlternatively, if you wish to update an existing prediction, please enter ```update <predictiongroup> <question> <new prediction>```""")
+                                  "You have not yet started a prediction conversation, please go to #predictions and ping `@Episteme predict <desired predictiongroup>` to start." +
+                                  "\nAlternatively, if you wish to update an existing prediction, please enter ```update <predictiongroup> <question> <new prediction>```")
         else:
           if self.activeconversations[message.author]["currentmode"] == "predicting":
             await self.handle_prediction_conversation(message)
@@ -280,7 +284,8 @@ class Episteme(discord.Client):
                   await self.send_message(message.author, nextquestion)
               else:
                 await self.send_message(message.channel,
-                                        "Could not find a prediction group named {0}. List: {1}".format(words[2], " ".join(self.predictiongroups.keys())))
+                                        "Could not find a prediction group named {0}. List: {1}".format(words[2],
+                                                                                                        " ".join(self.predictiongroups.keys())))
             elif words[1] == "resolve":
               if words[2] in self.predictiongroups:
                 group = self.predictiongroups[words[2]]
