@@ -307,6 +307,23 @@ class Episteme(discord.Client):
                 self.activeconversations[message.author]["currentmode"] = "creating"
                 await self.send_message(message.author,
                                         "Welcome.\nPlease enter every question you wish to add to this group, in order, and end with `finished`.")
+            elif words[1] == "submit":
+              if len(words) >= 4:
+                if words[2] in self.predictiongroups:
+                  group = self.predictiongroups[words[2]]
+                  newquestion = " ".join(words[3:])
+                  if newquestion not in group.questions:
+                    group.questions.append(newquestion)
+                    group.dump()
+                    await self.send_message(message.channel,
+                                            "`{0}` successfully added to {1}.".format(newquestion, group.name))
+                  else:
+                    await self.send_message(message.channel, "This question already exists in {}.".format(group.name))
+                else:
+                  await self.send_message(message.channel, "No prediction group named {} was found.".format(words[2]))
+              else:
+                await self.send_message(message.channel,
+                                        "Not enough arguments for submit command. Proper format `submit <predictiongroup> <new question>`")
             else:
               await self.send_message(message.channel, "Unrecognized command.")
 
