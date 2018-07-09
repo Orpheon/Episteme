@@ -75,10 +75,14 @@ class PredictionGroup:
 
   def resolve(self, truths):
     scores = {}
+    avgconsensus = {q: 0 for q in self.questions}
+    avgconsensus_n = {q: 0 for q in self.questions}
     for usermention,predictions in self.predictions.items():
       userscore = 0
       counter = 0
       for question,prediction in predictions.items():
+        avgconsensus[question] += prediction
+        avgconsensus_n[question] += 1
         if truths[question] == "true":
           userscore += (1-prediction)**2
           counter += 1
@@ -100,7 +104,27 @@ class PredictionGroup:
     self.path = os.path.join("finishedpredictiongroups", self.name) + ".json"
     self.dump()
 
-    return scores
+    avgscore = 0
+    wrong_questions = []
+    for question in avgconsensus.keys():
+      avgconsensus[question] /= avgconsensus_n[question]
+      if truths[question] == "true":
+        avgscore += (1-avgconsensus[question])**2
+        if avgconsensus[question] < 0.5:
+          wrong_questions.append((question, avgconsensus[question], "true"))
+      else:
+        avgscore += avgconsensus[question]**2
+        if avgconsensus[question] > 0.5:
+          wrong_questions.append((question, avgconsensus[question], "false"))
+
+    avgscore /= len(avgconsensus)
+
+    scores["Averaged consensus"] = {
+      "error": avgscore,
+      "completion": len(avgconsensus)
+    }
+
+    return scores, wrong_questions
 
 
 class Episteme(discord.Client):
@@ -219,7 +243,7 @@ class Episteme(discord.Client):
         await self.send_message(message.channel, nextquestion)
       else:
         await self.send_message(message.channel, "Finished resolving, calculating scores..")
-        results = group.resolve(self.activeconversations[message.author]["truths"])
+        results, wrong_questions = group.resolve(self.activeconversations[message.author]["truths"])
         ranking = sorted(list(results.items()), key=lambda x: x[1]["error"])
         channels = self.get_all_channels()
         for channel in channels:
@@ -228,6 +252,11 @@ class Episteme(discord.Client):
             await self.send_message(channel,
                                     "\n".join(["{0}: error {1}, completed {2}%".format(mention, data["error"],
                                                                                  int(data["completion"]*100)) for mention, data in ranking]))
+            await self.send_message(channel, "Following questions have been predicted wrongly by group consensus:")
+            await self.send_message(channel,
+                                    "\n".join([
+                                      "{0}: Predicted at {1} but in reality {2}".format(q[0], q[1], q[2]) for q in wrong_questions
+                                    ]))
         del self.activeconversations[message.author]
         del self.predictiongroups[group.name]
 
