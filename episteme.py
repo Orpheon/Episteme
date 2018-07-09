@@ -85,10 +85,16 @@ class PredictionGroup:
         elif truths[question] == "false":
           userscore += prediction**2
           counter += 1
-      scores[usermention] = {
-        "error": userscore/counter,
-        "completion": len(predictions) / len(truths)
-      }
+      if counter == 0:
+        scores[usermention] = {
+          "error": "N/A",
+          "completion": 0
+        }
+      else:
+        scores[usermention] = {
+          "error": (userscore/counter),
+          "completion": len(predictions) / len(truths)
+        }
     self.truths = truths
     os.remove(self.path)
     self.path = os.path.join("finishedpredictiongroups", self.name) + ".json"
