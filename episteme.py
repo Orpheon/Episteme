@@ -242,6 +242,10 @@ class Episteme(discord.Client):
       self.predictiongroups[group.name] = group
       group.dump()
       await self.send_message(message.channel, "Thank you, all questions have been written to disk. {} is now open for predictions.".format(group.name))
+      channels = self.get_all_channels()
+      for channel in channels:
+        if channel.id == self.PREDICTIONS_CHANNEL_ID:
+          await self.send_message(channel, "New survey {0} is now available for setting predictions!".format(group.name))
     else:
       if message.content in group.questions:
         await self.send_message(message.channel, "That question already exists.")
