@@ -96,7 +96,7 @@ class PredictionGroup:
         }
       else:
         scores[usermention] = {
-          "error": (userscore/counter),
+          "error": round(userscore/counter, 4),
           "completion": len(predictions) / len(truths)
         }
     self.truths = truths
@@ -120,8 +120,8 @@ class PredictionGroup:
     avgscore /= len(avgconsensus)
 
     scores["Averaged consensus"] = {
-      "error": avgscore,
-      "completion": len(avgconsensus)
+      "error": round(avgscore, 4),
+      "completion": len(avgconsensus) / len(truths)
     }
 
     return scores, wrong_questions
